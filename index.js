@@ -15,6 +15,7 @@ const chestData = new PogObject("bigkismet", {
 let runDone = false;
 let doSearch = true;
 let clickIndex;
+let lastChestClickIndex;
 
 
 register("worldLoad", () => {
@@ -46,20 +47,29 @@ registerWhen(register("packetSent", (packet, event) => {
     if (!item) return;
 
     item = new Item(item);
-
     clickIndex = getClickIndex(packet.func_149544_d());
 
-    if (item?.getName()?.includes("Reroll Chest")) {
+    if (item?.getName()?.includes("The Catacombs")) {
+        lastChestClickIndex = clickIndex;
+    } else if (item?.getName()?.includes("Reroll Chest")) {
         if (Dungeon.inDungeon && !runDone) return;
 
         if (Dungeon.inDungeon) {
-            clickIndex = 0;
+            lastChestClickIndex = 0;
         }
+
+// lastChestClickIndex
+        console.log(`${clickIndex}, ${lastChestClickIndex}`)
     
-        chestData.chests = chestData.chests.filter(c => isRecent(c));
-        if (!chestData?.chests?.[clickIndex]) return;
-        chestData.chests[clickIndex].rerolled = true;
-        chestData.save();
+        chestData.chests = chestData.chests.filter(c => isRecent(c.time));
+        // if (!chestData?.chests?.[lastChestClickIndex]) return;
+        // if (!Object.keys(chestData.chests).includes(lastChestClickIndex)) {
+        if (lastChestClickIndex >= 0 && lastChestClickIndex < chestData.chests.length) {
+            console.log(`set to true ${lastChestClickIndex}, ${chestData.chests.length}, ${chestData["chests"].length}`);
+            chestData.chests[lastChestClickIndex].rerolled = true;
+            chestData.save();
+            return;
+        }
     }
 }).setFilteredClass(C0EPacketClickWindow), () => Dungeon.inDungeon || Skyblock.area == "Dungeon Hub");
 
@@ -80,6 +90,7 @@ registerWhen(register("renderSlot", (slot, gui, event) => {
 
     if (Player?.getContainer()?.getName() != "Croesus") return;
     let slotInfo = kismetSlots.has(getClickIndex(slot.getIndex()));
+
     if (slotInfo) {
         const x = slot.getDisplayX();
         const y = slot.getDisplayY();
