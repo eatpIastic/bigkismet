@@ -13,15 +13,13 @@ const chestData = new PogObject("bigkismet", {
 }, "chests.json");
 
 let runDone = false;
-let doSearch = true;
 let clickIndex;
 let lastChestClickIndex;
+let page = 0;
 
 
 register("worldLoad", () => {
     runDone = false;
-    doSearch = true;
-    bigChests = {};
     chestData.chests = chestData.chests.filter(c => isRecent(c.time));
 });
 
@@ -58,12 +56,10 @@ registerWhen(register("packetSent", (packet, event) => {
             lastChestClickIndex = 0;
         }
 
-// lastChestClickIndex
-        console.log(`${clickIndex}, ${lastChestClickIndex}`)
+        // console.log(`${clickIndex}, ${lastChestClickIndex}`)
     
         chestData.chests = chestData.chests.filter(c => isRecent(c.time));
-        // if (!chestData?.chests?.[lastChestClickIndex]) return;
-        // if (!Object.keys(chestData.chests).includes(lastChestClickIndex)) {
+
         if (lastChestClickIndex >= 0 && lastChestClickIndex < chestData.chests.length) {
             console.log(`set to true ${lastChestClickIndex}, ${chestData.chests.length}, ${chestData["chests"].length}`);
             chestData.chests[lastChestClickIndex].rerolled = true;
@@ -73,13 +69,13 @@ registerWhen(register("packetSent", (packet, event) => {
     }
 }).setFilteredClass(C0EPacketClickWindow), () => Dungeon.inDungeon || Skyblock.area == "Dungeon Hub");
 
-const getClickIndex = (n) => { // 10 - 16 >> 17 18 >> 19 - 25 >> 26 27 >> 28 29
+const getClickIndex = (n) => { // 10 - 16 >> 17 18 >> 19 - 25 >> 26 27 >> 28 29 //  28 per page
     n -= 10;
     n -= (2 * (n > 6 ? Math.floor(n / 6) : 0));
+    n += (page * 28);
     return n;
 }
 
-// let bigChests = {};
 let kismetSlots = new Set();
 let openedChests = new Set();
 let halfOpened = new Set();
@@ -92,7 +88,7 @@ registerWhen(register("renderSlot", (slot, gui, event) => {
     if (Player?.getContainer()?.getName() != "Croesus") return;
     let slotInfo = kismetSlots.has(getClickIndex(slot.getIndex()));
 
-    if (slotInfo) {
+    if (slotInfo && !halfOpened.has(slot.getIndex())) {
         const x = slot.getDisplayX();
         const y = slot.getDisplayY();
         
@@ -121,9 +117,11 @@ registerWhen(register("renderSlot", (slot, gui, event) => {
 }), () => Skyblock.area ==  "Dungeon Hub");
 
 
-// register("step", () => {
-    // console.log(`${Object.keys(bigChests)} >> ${clickIndex}`);
-// }).setFps(1);
+// /28 + Page 1 Page 2
+
+register("step", () => {
+    console.log(`${page}`);
+}).setFps(1);
 
 
 registerWhen(register("tick", () => {
@@ -136,35 +134,46 @@ registerWhen(register("tick", () => {
     let tempToOpen = new Set();
 
     let b = 0;
+    let containsPageItem = false;
     for (let i = 0; i < itemList.length; i++) {
         let item = itemList[i];
+
+        if (item?.getName()?.removeFormatting()?.includes("Previous Page")) {
+            containsPageItem = true;
+            let lore = item.getLore();
+            for (let a = 0; a < lore.length; a++) {
+                let line = lore[a].removeFormatting();
+                let match = line.match(/Page (\d)/);
+                if (!match) continue;
+
+                page = parseInt(match[1]);
+            }
+        }
+
         if (!item?.getName()?.match(/.*The Catacombs/)) {
             continue;
         }
+
         let tc = chestData.chests?.[b];
         if (tc && !tc.rerolled) {
             tempChests.add(b);
-        } else {
-            let lore = item.getLore();
-            let isOpened = lore.some(l => l.removeFormatting().includes("No more Chests to open!"));
-            if (isOpened) tempOpenChests.add(i);
-            let canKey = lore.some(l => l.removeFormatting().includes("Opened Chest: "));
-            if (canKey) tempHalfOpened.add(i);
-            let toOpen = lore.some(l => l.removeFormatting().includes("No Chests Opened!"));
-            if (toOpen) tempToOpen.add(i);
-
         }
 
-        // if (!tc) continue;
-        // if (!tc.rerolled) 
-        
-        // tempChests[b] = tc.rerolled;
+        let lore = item.getLore();
+        let isOpened = lore.some(l => l.removeFormatting().includes("No more Chests to open!"));
+        if (isOpened) tempOpenChests.add(i);
+        let canKey = lore.some(l => l.removeFormatting().includes("Opened Chest: "));
+        if (canKey) tempHalfOpened.add(i);
+        let toOpen = lore.some(l => l.removeFormatting().includes("No Chests Opened!"));
+        if (toOpen) tempToOpen.add(i);
+
         b++;
     }
     kismetSlots = tempChests;
     openedChests = tempOpenChests;
     halfOpened = tempHalfOpened;
     toOpenChests = tempToOpen;
+    if (!containsPageItem) page = 0;
 }), () => Skyblock.area == "Dungeon Hub");
 
 
