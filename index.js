@@ -75,7 +75,7 @@ registerWhen(register("packetSent", (packet, event) => {
 
 const getClickIndex = (n) => { // 10 - 16 >> 17 18 >> 19 - 25 >> 26 27 >> 28 29
     n -= 10;
-    n -= (2 * (n > 7 ? Math.floor(n / 7) : 0));
+    n -= (2 * (n > 6 ? Math.floor(n / 6) : 0));
     return n;
 }
 
@@ -83,6 +83,7 @@ const getClickIndex = (n) => { // 10 - 16 >> 17 18 >> 19 - 25 >> 26 27 >> 28 29
 let kismetSlots = new Set();
 let openedChests = new Set();
 let halfOpened = new Set();
+let toOpenChests = new Set();
 
 registerWhen(register("renderSlot", (slot, gui, event) => {
     let item = slot?.getItem();
@@ -95,7 +96,16 @@ registerWhen(register("renderSlot", (slot, gui, event) => {
         const x = slot.getDisplayX();
         const y = slot.getDisplayY();
         
+        Tessellator.pushMatrix()
         Renderer.drawRect(Renderer.color(79, 165, 222, 127), x, y, 16, 16);
+        Tessellator.popMatrix()
+    } else if (toOpenChests.has(slot.getIndex())) {
+        const x = slot.getDisplayX();
+        const y = slot.getDisplayY();
+        
+        Tessellator.pushMatrix()
+        Renderer.drawRect(Renderer.color(96, 240, 80, 127), x, y, 16, 16);
+        Tessellator.popMatrix()
     }
     
     if (openedChests.has(slot.getIndex())) {
@@ -104,7 +114,9 @@ registerWhen(register("renderSlot", (slot, gui, event) => {
         const x = slot.getDisplayX();
         const y = slot.getDisplayY();
         
-        Renderer.drawRect(Renderer.color(218, 206, 55, 127), x, y, 16, 16);
+        Tessellator.pushMatrix()
+        Renderer.drawRect(Renderer.color(218, 206, 55, 80), x, y, 16, 16);
+        Tessellator.popMatrix()
     }
 }), () => Skyblock.area ==  "Dungeon Hub");
 
@@ -121,6 +133,7 @@ registerWhen(register("tick", () => {
     let tempChests = new Set();
     let tempOpenChests = new Set();
     let tempHalfOpened = new Set();
+    let tempToOpen = new Set();
 
     let b = 0;
     for (let i = 0; i < itemList.length; i++) {
@@ -137,6 +150,9 @@ registerWhen(register("tick", () => {
             if (isOpened) tempOpenChests.add(i);
             let canKey = lore.some(l => l.removeFormatting().includes("Opened Chest: "));
             if (canKey) tempHalfOpened.add(i);
+            let toOpen = lore.some(l => l.removeFormatting().includes("No Chests Opened!"));
+            if (toOpen) tempToOpen.add(i);
+
         }
 
         // if (!tc) continue;
@@ -148,6 +164,7 @@ registerWhen(register("tick", () => {
     kismetSlots = tempChests;
     openedChests = tempOpenChests;
     halfOpened = tempHalfOpened;
+    toOpenChests = tempToOpen;
 }), () => Skyblock.area == "Dungeon Hub");
 
 
